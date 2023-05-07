@@ -55,7 +55,6 @@ class StartGGDataProvider(TournamentDataProvider):
                     },
                     "query": StartGGDataProvider.TournamentDataQuery
                 }
-
             )
 
             data = json.loads(data.text)
@@ -81,6 +80,46 @@ class StartGGDataProvider(TournamentDataProvider):
             traceback.print_exc()
 
         return finalData
+
+    def GetIconURL(self):
+        url = None
+
+        try:
+            data = requests.post(
+                "https://www.start.gg/api/-/gql",
+                headers={
+                    "client-version": "20",
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    "operationName": "TournamentIconQuery",
+                    "variables": {
+                        "eventSlug": self.url.split("start.gg/")[1]
+                    },
+                    "query": '''
+                        query TournamentIconQuery($eventSlug: String!) {
+                            event(slug: $eventSlug) {
+                                tournament{
+                                    images(type: "profile") {
+                                        type
+                                        url
+                                    }
+                                }
+                            }
+                        }
+                    '''
+                }
+            )
+            data = json.loads(data.text)
+
+            images = deep_get(data, "data.event.tournament.images", [])
+
+            if len(images) > 0:
+                url = images[0]["url"]
+        except:
+            traceback.print_exc()
+        
+        return url
     
     def GetTournamentPhases(self, progress_callback=None):
         phases = []
@@ -146,6 +185,15 @@ class StartGGDataProvider(TournamentDataProvider):
             )
             data = json.loads(data.text)
 
+            oldData = requests.get(
+                f"https://api.smash.gg/phase_group/{id}",
+                headers={
+                    "client-version": "20",
+                    'Content-Type': 'application/json'
+                }
+            )
+            oldData = json.loads(oldData.text)
+
             seeds = deep_get(data, "data.phaseGroup.seeds.nodes", [])
             seeds.sort(key=lambda s: s.get("seedNum"))
 
@@ -175,17 +223,26 @@ class StartGGDataProvider(TournamentDataProvider):
             finalData["entrants"] = teams
 
             sets = deep_get(data, "data.phaseGroup.sets.nodes", [])
-            sets.sort(key=lambda s: (abs(int(s.get("round"))), s.get("id")))
 
+            # Preview IDs cannot be sorted normally
+            # They follow the format: preview_2004442_1_5
+            # Where ( preview_2004442_1_1 < preview_2004442_1_11 < preview_2004442_1_2 )
+            isPreview = any("preview" in str(s.get("id")) for s in sets)
+
+            if not isPreview:
+                sets.sort(key=lambda s: (abs(int(s.get("round"))), s.get("id")))
+            else:
+                sets.sort(key=lambda s: (abs(int(s.get("round"))), int(s.get("id").split("_")[-1])))
+            
             finalSets = {}
 
             for s in sets:
+                print(s)
+
                 round = int(s.get("round"))
                 
                 if not str(round) in finalSets:
                     finalSets[str(round)] = []
-
-                print(s)
 
                 finalSets[str(round)].append({
                     "score": [s.get("entrant1Score"), s.get("entrant2Score")],
@@ -200,13 +257,29 @@ class StartGGDataProvider(TournamentDataProvider):
                 originPhaseId = deep_get(s, "progressionSource.originPhaseGroup.id")
                 if originPhaseId:
                     finalData["progressionsIn"].append(originPhaseId)
+
+            finalData["winnersOnlyProgressions"] = deep_get(oldData, "entities.groups.hasCustomWinnerByes")
+
+            for s in sets:
+                if s.get("slots", []) and int(s.get("round")) == -2:
+                    for slot in s.get("slots", []):
+                        if slot.get("prereqType") == "seed":
+                            finalData["winnersOnlyProgressions"] = False
+
+                if finalData["winnersOnlyProgressions"] == False:
+                    break
             
-            if len(finalData["progressionsIn"]) > 0:
+            finalData["customSeeding"] = deep_get(oldData, "entities.groups.hasCustomWinnerByes")
+            
+            if len(finalData["progressionsIn"]) > 0 and not finalData["winnersOnlyProgressions"]:
                 originalKeys = list(finalData["sets"].keys())
                 originalKeys.reverse()
 
                 # If we have a non-power2 number of progressions in, we shift 2 rounds
                 shift = 1 if is_power_of_two(len(finalData["progressionsIn"])) else 2
+
+                if deep_get(oldData, "entities.groups.hasCustomWinnerByes"):
+                    shift = 1
 
                 for roundKey in originalKeys:
                     round = int(roundKey)
