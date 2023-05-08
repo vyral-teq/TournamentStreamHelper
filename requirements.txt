@@ -1,0 +1,9 @@
+PyQt5
+flask
+flask_cors
+deepdiff
+requests
+Pillow
+python-dateutil
+qdarkstyle
+py7zr
