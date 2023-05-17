@@ -19,8 +19,8 @@ body {
   align-items: center;
   gap: 32px;
   overflow: hidden;
-  box-shadow: 0 0 2px 2px rgb(0 0 0 / 12%), 0 0 3px 1px rgb(0 0 0 / 14%),
-    0 0 1px 5px rgb(0 0 0 / 12%), 0 0 1px 2px rgb(0 0 0 / 10%);
+  /* box-shadow: 0 0 2px 2px rgb(0 0 0 / 12%), 0 0 3px 1px rgb(0 0 0 / 14%),
+    0 0 1px 5px rgb(0 0 0 / 12%), 0 0 1px 2px rgb(0 0 0 / 10%); */
 }
 
 .smash64 .bg {
@@ -152,7 +152,7 @@ body {
   justify-content: space-around;
   height: unset;
   flex-direction: column;
-  width: 600px;
+  width: 300px;
   font-size: 20px;
   padding: 4px 10px;
   top: unset;
