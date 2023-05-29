@@ -667,6 +667,7 @@ class TSHScoreboardWidget(QDockWidget):
 
             TSHTournamentDataProvider.instance.GetMatch(
                 self, data["id"], overwrite=True)
+            TSHTournamentDataProvider.instance.GetStreamQueue()
 
         self.autoUpdateTimer.timeout.connect(
             lambda setId=data: TSHTournamentDataProvider.instance.GetMatch(self, data.get("id"), overwrite=False))
@@ -717,6 +718,7 @@ class TSHScoreboardWidget(QDockWidget):
             self.btLoadStreamSet.setText(
                 QApplication.translate("app",  "Load current stream set") + " "+QApplication.translate("punctuation", "(")+SettingsManager.Get("twitch_username")+QApplication.translate("punctuation", ")"))
             self.btLoadStreamSet.setEnabled(True)
+            StateManager.Set(f"currentStream", SettingsManager.Get("twitch_username"))
         else:
             self.btLoadStreamSet.setText(
                 QApplication.translate("app", "Load current stream set"))
@@ -853,5 +855,9 @@ class TSHScoreboardWidget(QDockWidget):
         if data.get("stage_strike"):
             StateManager.Set(f"score.stage_strike", data.get("stage_strike"))
             StateManager.Set(f"score.ruleset", data.get("ruleset"))
+        
+        if data.get("bracket_type"):
+            StateManager.Set(f"score.bracket_type", data.get("bracket_type"))
+            TSHStatsUtil.instance.signals.UpsetFactorCalculation.emit()
         
         StateManager.ReleaseSaving()
