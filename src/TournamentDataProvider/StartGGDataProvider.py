@@ -314,24 +314,8 @@ class StartGGDataProvider(TournamentDataProvider):
 
         return finalData
 
-    def GetMatch(self, setId):
-        try:
-            r = requests.get(
-                f'https://www.start.gg/api/-/gg_api./set/{setId};bustCache=true;expand=["setTask"];fetchMostRecentCached=true',
-                {
-                    "extensions": {"cacheControl": {"version": 1, "noCache": True}},
-                    "cacheControl": {"version": 1, "noCache": True},
-                    "Cache-Control": "no-cache",
-                    "Pragma": "no-cache"
-                }
-            )
-
-        except Exception as e:
-            traceback.print_exc()
-        return {}
-
     def GetMatch(self, setId, progress_callback):
-        finalResult = {}
+        finalResult = None
 
         try:
             pool = self.getMatchThreadPool
@@ -387,7 +371,12 @@ class StartGGDataProvider(TournamentDataProvider):
                 "Pragma": "no-cache"
             }
         )
-        data = json.loads(r.text)
+        data = {}
+
+        try:
+            data = json.loads(r.text)
+        except:
+            pass
         return self.ParseMatchDataOldApi(data)
 
     def _GetMatchNewApi(self, setId, progress_callback):
@@ -896,6 +885,7 @@ class StartGGDataProvider(TournamentDataProvider):
             data = json.loads(data.text)
             print("Stream queue loaded from StartGG")
 
+            eventSlug = deep_get(data, "data.event.slug", "")
             queues = deep_get(data, "data.event.tournament.streamQueue", [])
 
             finalData = {}
@@ -908,6 +898,8 @@ class StartGGDataProvider(TournamentDataProvider):
                 streamName = q.get("stream", {}).get("streamName", "")
                 queueData = {}
                 for setIndex, _set in enumerate(q.get("sets", [])):
+
+
                     phase_name = deep_get(_set, "phaseGroup.phase.name")
                     if deep_get(_set, "phaseGroup.phase.groupCount") > 1:
                         phase_name += " - " + TSHLocaleHelper.phaseNames.get(
@@ -915,6 +907,7 @@ class StartGGDataProvider(TournamentDataProvider):
 
                     frt = _set.get("fullRoundText", "")
                     total_games = _set.get("totalGames", 0)
+                    seteventSlug = deep_get(_set, "event.slug", "")
 
                     setData = {
                         "id": _set.get("id"),
@@ -924,7 +917,9 @@ class StartGGDataProvider(TournamentDataProvider):
                         "best_of_text": TSHLocaleHelper.matchNames.get("best_of").format(total_games) if total_games > 0 else "",
                         "state": _set.get("state"),
                         "team": {},
-                        "station": deep_get(_set, "station.number", -1)
+                        "station": deep_get(_set, "station.number", -1),
+                        "event": seteventSlug,
+                        "isCurrentEvent": seteventSlug == eventSlug
                     }
 
                     for teamIndex, slot in enumerate(_set.get("slots", [])):
@@ -956,18 +951,19 @@ class StartGGDataProvider(TournamentDataProvider):
                                 stateCode = playerData.get("state_code", "")
                                 countryData = TSHCountryHelper.countries.get(
                                     countryCode)
-                                states = countryData.get("states")
-                                stateData = {}
-                                if stateCode:
-                                    stateData = states[stateCode]
+                                if countryData:
+                                    states = countryData.get("states")
+                                    stateData = {}
+                                    if stateCode:
+                                        stateData = states[stateCode]
 
-                                    path = f'./assets/state_flag/{countryCode}/{"_CON" if stateCode == "CON" else stateCode}.png'
-                                    if not os.path.exists(path):
-                                        path = None
+                                        path = f'./assets/state_flag/{countryCode}/{"_CON" if stateCode == "CON" else stateCode}.png'
+                                        if not os.path.exists(path):
+                                            path = None
 
-                                    stateData.update({
-                                        "asset": path
-                                    })
+                                        stateData.update({
+                                            "asset": path
+                                        })
 
                                 playerData = {
                                     "country": TSHCountryHelper.GetBasicCountryInfo(countryCode),
