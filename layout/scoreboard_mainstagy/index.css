@@ -149,7 +149,7 @@ body {
   transform: translateX(-50%);
   height: 64px;
   width: 136px;
-  background-image: url("./logoSimple.png");
+  background-image: url("../v.png");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
@@ -162,7 +162,7 @@ body {
   transform: translateX(50%);
   height: 64px;
   width: 136px;
-  background-image: url("../logo.png");
+  background-image: url("../v.png");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
