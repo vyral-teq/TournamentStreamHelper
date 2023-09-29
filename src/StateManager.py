@@ -9,7 +9,6 @@ import requests
 from PIL import Image
 import time
 from loguru import logger
-
 from .Helpers.TSHDictHelper import deep_get, deep_set, deep_unset
 
 
@@ -17,15 +16,20 @@ class StateManager:
     lastSavedState = {}
     state = {}
     saveBlocked = 0
+    webServer = None
 
     lock = threading.RLock()
     threads = []
 
     def BlockSaving():
         StateManager.saveBlocked += 1
+        logger.critical(
+            "Initial Block - Current Blocking Status: " + str(StateManager.saveBlocked))
 
     def ReleaseSaving():
         StateManager.saveBlocked -= 1
+        logger.critical(
+            "Release Block - Current Blocking Status: " + str(StateManager.saveBlocked))
         if StateManager.saveBlocked == 0:
             StateManager.SaveState()
 
@@ -50,6 +54,12 @@ class StateManager:
                                 StateManager.state)
 
                 if len(diff) > 0:
+                    try:
+                        if StateManager.webServer is not None:
+                            StateManager.webServer.emit('program_state', StateManager.state)
+                    except Exception as e:
+                        logger.error(traceback.format_exc())
+
                     exportThread = threading.Thread(target=ExportAll)
                     StateManager.threads.append(exportThread)
                     exportThread.start()
